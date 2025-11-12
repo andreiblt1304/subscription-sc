@@ -1,7 +1,6 @@
 #![allow(non_snake_case)]
 
 pub mod config;
-mod proxy;
 
 use config::Config;
 use multiversx_sc_snippets::imports::*;
@@ -10,8 +9,10 @@ use std::{
     io::{Read, Write},
     path::Path,
 };
+use subscription::subscription_proxy::SubscriptionContractProxy;
 
 const STATE_FILE: &str = "state.toml";
+const CONTRACT_ABI_PATH: &str = "mxsc:../output/subscription.mxsc.json";
 
 pub async fn subscription_cli() {
     env_logger::init();
@@ -19,7 +20,7 @@ pub async fn subscription_cli() {
     let mut args = std::env::args();
     let _ = args.next();
     let cmd = args.next().expect("at least one argument required");
-    let config = Config::new();
+    let config = Config::new_config();
     let mut interact = ContractInteract::new(config).await;
     match cmd.as_str() {
         "deploy" => interact.deploy().await,
@@ -36,49 +37,49 @@ pub async fn subscription_cli() {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct State {
-    contract_address: Option<Bech32Address>
+    contract_address: Option<Bech32Address>,
 }
 
 impl State {
-        // Deserializes state from file
-        pub fn load_state() -> Self {
-            if Path::new(STATE_FILE).exists() {
-                let mut file = std::fs::File::open(STATE_FILE).unwrap();
-                let mut content = String::new();
-                file.read_to_string(&mut content).unwrap();
-                toml::from_str(&content).unwrap()
-            } else {
-                Self::default()
-            }
-        }
-    
-        /// Sets the contract address
-        pub fn set_address(&mut self, address: Bech32Address) {
-            self.contract_address = Some(address);
-        }
-    
-        /// Returns the contract address
-        pub fn current_address(&self) -> &Bech32Address {
-            self.contract_address
-                .as_ref()
-                .expect("no known contract, deploy first")
+    // Deserializes state from file
+    pub fn load_state() -> Self {
+        if Path::new(STATE_FILE).exists() {
+            let mut file = std::fs::File::open(STATE_FILE).unwrap();
+            let mut content = String::new();
+            file.read_to_string(&mut content).unwrap();
+            toml::from_str(&content).unwrap()
+        } else {
+            Self::default()
         }
     }
-    
-    impl Drop for State {
-        // Serializes state to file
-        fn drop(&mut self) {
-            let mut file = std::fs::File::create(STATE_FILE).unwrap();
-            file.write_all(toml::to_string(self).unwrap().as_bytes())
-                .unwrap();
-        }
+
+    /// Sets the contract address
+    pub fn set_address(&mut self, address: Bech32Address) {
+        self.contract_address = Some(address);
     }
+
+    /// Returns the contract address
+    pub fn current_address(&self) -> &Bech32Address {
+        self.contract_address
+            .as_ref()
+            .expect("no known contract, deploy first")
+    }
+}
+
+impl Drop for State {
+    // Serializes state to file
+    fn drop(&mut self) {
+        let mut file = std::fs::File::create(STATE_FILE).unwrap();
+        file.write_all(toml::to_string(self).unwrap().as_bytes())
+            .unwrap();
+    }
+}
 
 pub struct ContractInteract {
     interactor: Interactor,
     wallet_address: Address,
     contract_code: BytesValue,
-    state: State
+    state: State,
 }
 
 impl ContractInteract {
@@ -93,17 +94,15 @@ impl ContractInteract {
         // Useful in the chain simulator setting
         // generate blocks until ESDTSystemSCAddress is enabled
         interactor.generate_blocks_until_all_activations().await;
-        
-        let contract_code = BytesValue::interpret_from(
-            "mxsc:../output/subscription.mxsc.json",
-            &InterpreterContext::default(),
-        );
+
+        let contract_code =
+            BytesValue::interpret_from(CONTRACT_ABI_PATH, &InterpreterContext::default());
 
         ContractInteract {
             interactor,
             wallet_address,
             contract_code,
-            state: State::load_state()
+            state: State::load_state(),
         }
     }
 
@@ -113,7 +112,7 @@ impl ContractInteract {
             .tx()
             .from(&self.wallet_address)
             .gas(30_000_000u64)
-            .typed(proxy::SubscriptionContractProxy)
+            .typed(SubscriptionContractProxy)
             .init()
             .code(&self.contract_code)
             .returns(ReturnsNewAddress)
@@ -131,7 +130,7 @@ impl ContractInteract {
             .to(self.state.current_address())
             .from(&self.wallet_address)
             .gas(30_000_000u64)
-            .typed(proxy::SubscriptionContractProxy)
+            .typed(SubscriptionContractProxy)
             .upgrade()
             .code(&self.contract_code)
             .code_metadata(CodeMetadata::UPGRADEABLE)
@@ -153,7 +152,7 @@ impl ContractInteract {
             .from(&self.wallet_address)
             .to(self.state.current_address())
             .gas(30_000_000u64)
-            .typed(proxy::SubscriptionContractProxy)
+            .typed(SubscriptionContractProxy)
             .add_subscription_plan(title, duration_days, price)
             .returns(ReturnsResultUnmanaged)
             .run()
@@ -173,7 +172,7 @@ impl ContractInteract {
             .from(&self.wallet_address)
             .to(self.state.current_address())
             .gas(30_000_000u64)
-            .typed(proxy::SubscriptionContractProxy)
+            .typed(SubscriptionContractProxy)
             .upgrade_subscription(new_plan_id)
             .egld(egld_amount)
             .returns(ReturnsResultUnmanaged)
@@ -194,7 +193,7 @@ impl ContractInteract {
             .from(&self.wallet_address)
             .to(self.state.current_address())
             .gas(30_000_000u64)
-            .typed(proxy::SubscriptionContractProxy)
+            .typed(SubscriptionContractProxy)
             .add_new_subscription(plan_id)
             .egld(egld_amount)
             .returns(ReturnsResultUnmanaged)
@@ -211,7 +210,7 @@ impl ContractInteract {
             .interactor
             .query()
             .to(self.state.current_address())
-            .typed(proxy::SubscriptionContractProxy)
+            .typed(SubscriptionContractProxy)
             .get_plan(plan_id)
             .returns(ReturnsResultUnmanaged)
             .run()
@@ -227,7 +226,7 @@ impl ContractInteract {
             .interactor
             .query()
             .to(self.state.current_address())
-            .typed(proxy::SubscriptionContractProxy)
+            .typed(SubscriptionContractProxy)
             .get_subscription(user)
             .returns(ReturnsResultUnmanaged)
             .run()
@@ -241,7 +240,7 @@ impl ContractInteract {
             .interactor
             .query()
             .to(self.state.current_address())
-            .typed(proxy::SubscriptionContractProxy)
+            .typed(SubscriptionContractProxy)
             .get_all_plan_ids()
             .returns(ReturnsResultUnmanaged)
             .run()
@@ -249,5 +248,4 @@ impl ContractInteract {
 
         println!("Result: {result_value:?}");
     }
-
 }

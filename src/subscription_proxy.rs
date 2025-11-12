@@ -161,7 +161,7 @@ where
 }
 
 #[type_abi]
-#[derive(TopEncode, TopDecode, NestedEncode, NestedDecode, Clone)]
+#[derive(TopEncode, TopDecode, NestedEncode, NestedDecode, Clone, Debug)]
 pub struct SubscriptionPlan<Api>
 where
     Api: ManagedTypeApi,
@@ -172,7 +172,7 @@ where
 }
 
 #[type_abi]
-#[derive(TopEncode, TopDecode, NestedEncode, NestedDecode, Clone)]
+#[derive(TopEncode, TopDecode, NestedEncode, NestedDecode, Clone, Debug)]
 pub struct Subscription<Api>
 where
     Api: ManagedTypeApi,

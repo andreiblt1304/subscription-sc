@@ -7,7 +7,7 @@ pub mod subscription_proxy;
 pub const SECONDS_PER_DAY: u64 = 24 * 60 * 60;
 
 #[type_abi]
-#[derive(TopEncode, TopDecode, NestedEncode, NestedDecode, Clone)]
+#[derive(TopEncode, TopDecode, NestedEncode, NestedDecode, Clone, Debug)]
 pub struct SubscriptionPlan<M: ManagedTypeApi> {
     pub title: ManagedBuffer<M>,
     pub price: BigUint<M>,
@@ -15,7 +15,7 @@ pub struct SubscriptionPlan<M: ManagedTypeApi> {
 }
 
 #[type_abi]
-#[derive(TopEncode, TopDecode, NestedEncode, NestedDecode, Clone)]
+#[derive(TopEncode, TopDecode, NestedEncode, NestedDecode, Clone, Debug)]
 pub struct Subscription<M: ManagedTypeApi> {
     pub plan_id: u32,
     pub started_at: u64,
