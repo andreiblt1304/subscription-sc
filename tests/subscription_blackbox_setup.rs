@@ -76,6 +76,30 @@ impl SubscriptionContractTestState {
             .run()
     }
 
+    pub fn subscribe(&mut self, plan_id: u32, payment: EgldPayment<StaticApi>) -> Result<(), TxResponseStatus> {
+        self.world
+            .tx()
+            .from(STUDENT_ADDRESS)
+            .to(SUBSCRIPTION_ADDRESS)
+            .typed(SubscriptionContractProxy)
+            .add_new_subscription(plan_id)
+            .payment(payment)
+            .returns(ReturnsHandledOrError::new())
+            .run()
+    }
+
+    pub fn upgrade_subscription(&mut self, new_plan_id: u32, payment: EgldPayment<StaticApi>) -> Result<(), TxResponseStatus> {
+        self.world
+            .tx()
+            .from(STUDENT_ADDRESS)
+            .to(SUBSCRIPTION_ADDRESS)
+            .typed(SubscriptionContractProxy)
+            .upgrade_subscription(new_plan_id)
+            .payment(payment)
+            .returns(ReturnsHandledOrError::new())
+            .run()
+    }
+
     pub fn get_subscription(
         &mut self,
         user: TestAddress,

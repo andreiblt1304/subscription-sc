@@ -100,6 +100,18 @@ where
             .original_result()
     }
 
+    pub fn upgrade_subscription<
+        Arg0: ProxyArg<u32>,
+    >(
+        self,
+        new_plan_id: Arg0,
+    ) -> TxTypedCall<Env, From, To, (), Gas, ()> {
+        self.wrapped_tx
+            .raw_call("upgradeSubscription")
+            .argument(&new_plan_id)
+            .original_result()
+    }
+
     pub fn add_new_subscription<
         Arg0: ProxyArg<u32>,
     >(

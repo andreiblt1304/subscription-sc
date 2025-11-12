@@ -59,6 +59,38 @@ pub trait SubscriptionContract {
     }
 
     #[payable("EGLD")]
+    #[endpoint(upgradeSubscription)]
+    fn upgrade_subscription(&self, new_plan_id: u32) {
+        let caller = self.blockchain().get_caller();
+
+        require!(
+            !self.subscription_plans(new_plan_id).is_empty(),
+            "subscription plan not found"
+        );
+
+        let current_sub = self.subscriptions(&caller);
+        require!(
+            !current_sub.is_empty(),
+            "caller is not subscribed currently to any plan"
+        );
+
+        let paid_amount = self.call_value().egld().clone_value();
+
+        let new_plan = self.subscription_plans(new_plan_id).get();
+        require!(paid_amount == (new_plan.price.clone() - current_sub.get().paid_amount), "difference payment required for subscription");
+
+        let subscription = Subscription {
+            plan_id: new_plan_id,
+            started_at: current_sub.get().started_at,
+            expires_at: current_sub.get().expires_at,
+            paid_amount: new_plan.price,
+        };
+
+        self.subscriptions(&caller).set(&subscription);
+        self.subscription_created(&caller, new_plan_id, &paid_amount);
+    }
+
+    #[payable("EGLD")]
     #[endpoint(addNewSubscription)]
     fn add_new_subscription(&self, plan_id: u32) {
         let caller = self.blockchain().get_caller();
@@ -72,12 +104,15 @@ pub trait SubscriptionContract {
             "caller already subscribed"
         );
 
+        let paid_amount = self.call_value().egld().clone_value();
+
         let plan = self.subscription_plans(plan_id).get();
+        require!(paid_amount == plan.price, "payment required for subscription");
 
         let start_timestamp = self.blockchain().get_block_timestamp();
         let duration_in_seconds = plan.duration_days.saturating_mul(SECONDS_PER_DAY);
         let expires_at = start_timestamp.saturating_add(duration_in_seconds);
-        let paid_amount = self.call_value().egld().clone_value();
+
 
         let subscription = Subscription {
             plan_id,
