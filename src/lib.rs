@@ -77,7 +77,10 @@ pub trait SubscriptionContract {
         let paid_amount = self.call_value().egld().clone_value();
 
         let new_plan = self.subscription_plans(new_plan_id).get();
-        require!(paid_amount == (new_plan.price.clone() - current_sub.get().paid_amount), "difference payment required for subscription");
+        require!(
+            paid_amount == (new_plan.price.clone() - current_sub.get().paid_amount),
+            "difference payment required for subscription"
+        );
 
         let subscription = Subscription {
             plan_id: new_plan_id,
@@ -107,12 +110,14 @@ pub trait SubscriptionContract {
         let paid_amount = self.call_value().egld().clone_value();
 
         let plan = self.subscription_plans(plan_id).get();
-        require!(paid_amount == plan.price, "payment required for subscription");
+        require!(
+            paid_amount == plan.price,
+            "payment required for subscription"
+        );
 
         let start_timestamp = self.blockchain().get_block_timestamp();
         let duration_in_seconds = plan.duration_days.saturating_mul(SECONDS_PER_DAY);
         let expires_at = start_timestamp.saturating_add(duration_in_seconds);
-
 
         let subscription = Subscription {
             plan_id,
