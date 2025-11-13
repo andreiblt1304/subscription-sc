@@ -34,6 +34,7 @@ pub trait SubscriptionContract {
     #[upgrade]
     fn upgrade(&self) {}
 
+    #[only_owner]
     #[endpoint(addSubscriptionPlan)]
     fn add_subscription_plan(
         &self,
@@ -41,7 +42,6 @@ pub trait SubscriptionContract {
         duration_days: u64,
         price: BigUint,
     ) -> u32 {
-        self.require_caller_is_owner();
         require!(!title.is_empty(), "subscription title required");
         require!(duration_days > 0, "duration must be greater than zero");
         require!(price > 0, "price must be greater than zero");
@@ -175,12 +175,6 @@ pub trait SubscriptionContract {
         let next = current.checked_add(1).expect("plan id overflow");
         self.plan_counter().set(next);
         next
-    }
-
-    fn require_caller_is_owner(&self) {
-        let caller = self.blockchain().get_caller();
-        let owner = self.owner().get();
-        require!(caller == owner, "only owner can manage plans");
     }
 
     #[storage_mapper("owner")]
