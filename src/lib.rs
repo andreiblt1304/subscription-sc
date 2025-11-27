@@ -18,8 +18,8 @@ pub struct SubscriptionPlan<M: ManagedTypeApi> {
 #[derive(TopEncode, TopDecode, NestedEncode, NestedDecode, Clone)]
 pub struct Subscription<M: ManagedTypeApi> {
     pub plan_id: u32,
-    pub started_at: u64,
-    pub expires_at: u64,
+    pub started_at: TimestampSeconds,
+    pub expires_at: TimestampSeconds,
     pub paid_amount: BigUint<M>,
 }
 
@@ -34,6 +34,7 @@ pub trait SubscriptionContract {
     #[upgrade]
     fn upgrade(&self) {}
 
+    #[only_owner]
     #[endpoint(addSubscriptionPlan)]
     fn add_subscription_plan(
         &self,
@@ -41,7 +42,6 @@ pub trait SubscriptionContract {
         duration_days: u64,
         price: BigUint,
     ) -> u32 {
-        self.require_caller_is_owner();
         require!(!title.is_empty(), "subscription title required");
         require!(duration_days > 0, "duration must be greater than zero");
         require!(price > 0, "price must be greater than zero");
@@ -74,14 +74,14 @@ pub trait SubscriptionContract {
 
         let plan = self.subscription_plans(plan_id).get();
 
-        let start_timestamp = self.blockchain().get_block_timestamp();
-        let duration_in_seconds = plan.duration_days.saturating_mul(SECONDS_PER_DAY);
-        let expires_at = start_timestamp.saturating_add(duration_in_seconds);
+        let started_at = self.blockchain().get_block_timestamp_seconds();
+        let duration_in_seconds = DurationSeconds::new(plan.duration_days * SECONDS_PER_DAY);
+        let expires_at = started_at + duration_in_seconds;
         let paid_amount = self.call_value().egld().clone_value();
 
         let subscription = Subscription {
             plan_id,
-            started_at: start_timestamp,
+            started_at,
             expires_at,
             paid_amount: paid_amount.clone(),
         };
@@ -135,12 +135,6 @@ pub trait SubscriptionContract {
         let next = current.checked_add(1).expect("plan id overflow");
         self.plan_counter().set(next);
         next
-    }
-
-    fn require_caller_is_owner(&self) {
-        let caller = self.blockchain().get_caller();
-        let owner = self.owner().get();
-        require!(caller == owner, "only owner can manage plans");
     }
 
     #[storage_mapper("owner")]
