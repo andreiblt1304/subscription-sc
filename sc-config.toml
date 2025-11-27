@@ -1,0 +1,2 @@
+[[proxy]]
+path = "interactor/src/subscription_proxy.rs"
