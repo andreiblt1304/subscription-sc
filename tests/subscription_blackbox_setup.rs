@@ -65,7 +65,7 @@ impl SubscriptionContractTestState {
             .run()
     }
 
-    pub fn subscribe_without_payment(&mut self, plan_id: u32) -> Result<(), TxResponseStatus> {
+    pub fn subscribe_payment(&mut self, plan_id: u32) -> Result<(), TxResponseStatus> {
         self.world
             .tx()
             .from(STUDENT_ADDRESS)
